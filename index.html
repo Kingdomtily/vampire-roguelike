@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crimson Requiem</title>
+<style>
+:root{
+  --purple:#7c3aed;
+  --purple-dark:#3b0764;
+  --blood:#8b0020;
+  --gold:#d4af37;
+  --bg:#0a0509;
+  --panel:#150a12;
+  --panel-border:#3a1030;
+  --text:#e9d9e8;
+  --text-dim:#a487a3;
+}
+*{box-sizing:border-box;}
+html,body{
+  margin:0;padding:0;width:100%;height:100%;
+  background:#000;
+  color:var(--text);
+  font-family:'Trebuchet MS', 'Segoe UI', sans-serif;
+  overflow:hidden;
+  user-select:none;
+}
+#gameRoot{
+  position:relative;
+  width:100vw;height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center, #1a0d16 0%, #000000 100%);
+}
+#viewport{
+  position:relative;
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+  box-shadow:0 0 60px 10px rgba(124,58,237,0.25), 0 0 0 2px #000;
+  border:2px solid #241018;
+}
+canvas{display:block;}
+#uiLayer{
+  position:absolute;left:0;top:0;width:100%;height:100%;
+  pointer-events:none;
+}
+#uiLayer .interactive{pointer-events:auto;}
+
+/* ---------- generic panel/button ---------- */
+.panel{
+  background:linear-gradient(180deg,#1c0d18,#0e0509);
+  border:2px solid var(--panel-border);
+  box-shadow:0 0 0 1px #000, 0 8px 24px rgba(0,0,0,0.6), inset 0 0 30px rgba(124,58,237,0.06);
+  border-radius:6px;
+}
+.btn{
+  font-family:inherit;
+  background:linear-gradient(180deg,#2a1224,#170a14);
+  border:1px solid var(--panel-border);
+  color:var(--text);
+  padding:10px 18px;
+  font-size:15px;
+  letter-spacing:0.5px;
+  cursor:pointer;
+  border-radius:4px;
+  transition:all .12s ease;
+  text-transform:uppercase;
+}
+.btn:hover{
+  background:linear-gradient(180deg,#4c1d95,#2a0f45);
+  border-color:var(--purple);
+  color:#fff;
+  box-shadow:0 0 14px rgba(124,58,237,0.55);
+  transform:translateY(-1px);
+}
+.btn:active{transform:translateY(0px);}
+.btn.selected{
+  border-color:var(--gold);
+  box-shadow:0 0 14px rgba(212,175,55,0.5);
+}
+.btn:disabled{opacity:0.35;cursor:not-allowed;filter:grayscale(1);}
+h1,h2,h3{margin:0 0 8px 0;font-weight:600;letter-spacing:1px;}
+.title-font{
+  font-family:'Georgia','Times New Roman',serif;
+  color:var(--gold);
+  text-shadow:0 0 12px rgba(124,58,237,0.8), 0 2px 2px #000;
+}
+
+/* ---------- screens ---------- */
+.screen{
+  position:absolute;left:0;top:0;width:100%;height:100%;
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;
+  background:rgba(4,1,6,0.88);
+  pointer-events:auto;
+}
+.hidden{display:none !important;}
+
+/* Main menu */
+#screen-menu .title-font{font-size:52px;}
+#screen-menu .subtitle{color:var(--text-dim);margin-bottom:36px;font-style:italic;}
+
+/* Character select */
+#screen-charselect{gap:18px;}
+.char-grid{display:flex;gap:16px;margin:18px 0;}
+.char-card{
+  width:190px;padding:14px;text-align:center;cursor:pointer;
+}
+.char-card .portrait{width:96px;height:96px;margin:0 auto 8px;background:#1a0d18;border:1px solid var(--panel-border);border-radius:6px;display:flex;align-items:center;justify-content:center;}
+.char-card h3{color:var(--gold);font-size:16px;}
+.char-card .desc{font-size:11.5px;color:var(--text-dim);min-height:48px;line-height:1.4;}
+.stat-row{display:flex;align-items:center;gap:6px;font-size:11px;margin:2px 0;}
+.stat-row .label{width:52px;text-align:left;color:var(--text-dim);}
+.stat-bar{flex:1;height:6px;background:#20101c;border:1px solid #3a1030;border-radius:3px;overflow:hidden;}
+.stat-bar > div{height:100%;background:linear-gradient(90deg,var(--purple-dark),var(--purple));}
+.stat-row.vigor .stat-bar>div{background:linear-gradient(90deg,#5c1010,#c81c1c);}
+.stat-row.strength .stat-bar>div{background:linear-gradient(90deg,#5c3d10,#d4af37);}
+.stat-row.magic .stat-bar>div{background:linear-gradient(90deg,#3b0764,#a855f7);}
+.stat-row.speed .stat-bar>div{background:linear-gradient(90deg,#0a4c4c,#2dd4bf);}
+
+/* HUD */
+#hud{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
+#hud-topleft{position:absolute;left:14px;top:12px;display:flex;flex-direction:column;gap:6px;width:260px;}
+.bar-wrap{position:relative;height:18px;background:#1a0c14;border:1px solid #3a1030;border-radius:3px;overflow:hidden;box-shadow:0 0 8px rgba(0,0,0,0.6);}
+.bar-fill{height:100%;transition:width .15s ease;}
+.bar-fill.hp{background:linear-gradient(180deg,#e0293f,#7a0f1e);}
+.bar-fill.boss{background:linear-gradient(180deg,#8b2fd6,#3b0764);}
+.bar-label{position:absolute;left:6px;top:1px;font-size:11px;color:#fff;text-shadow:0 1px 2px #000;}
+#hud-room{position:absolute;right:14px;top:12px;text-align:right;font-size:13px;color:var(--text-dim);}
+#hud-room b{color:var(--gold);}
+#hud-boss{position:absolute;left:50%;top:12px;transform:translateX(-50%);width:420px;text-align:center;}
+#hud-boss .bar-wrap{height:16px;}
+#hud-boss .name{font-size:12px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px;text-shadow:0 0 8px #000;}
+#hud-weapon{position:absolute;right:14px;bottom:14px;display:flex;align-items:center;gap:8px;}
+#hud-combo{position:absolute;left:14px;bottom:14px;font-size:12px;color:var(--purple);letter-spacing:1px;min-height:16px;}
+#hud-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:11px;color:var(--text-dim);}
+
+/* Item screen */
+#screen-items .panel{width:640px;max-height:80vh;padding:20px;overflow-y:auto;}
+.item-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.item-entry{display:flex;gap:10px;align-items:center;padding:8px;border:1px solid #2a1424;border-radius:4px;background:#150a12;}
+.item-entry .icon{width:36px;height:36px;flex:none;background:#0e0509;border:1px solid #3a1030;border-radius:4px;}
+.item-entry .name{color:var(--gold);font-size:13px;}
+.item-entry .desc{color:var(--text-dim);font-size:11px;}
+
+/* Door / reward choice */
+#screen-doorchoice .choices{display:flex;gap:40px;}
+.door-card{width:220px;padding:16px;text-align:center;cursor:pointer;}
+.door-card .icon-big{width:80px;height:80px;margin:0 auto 10px;background:#1a0d18;border:1px solid var(--panel-border);border-radius:6px;display:flex;align-items:center;justify-content:center;}
+.door-card h3{color:var(--gold);font-size:15px;}
+.door-card .desc{font-size:12px;color:var(--text-dim);}
+.door-card .tag{display:inline-block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#000;background:var(--gold);padding:2px 6px;border-radius:3px;margin-bottom:6px;}
+
+/* pause / gameover / win */
+#screen-pause .panel, #screen-gameover .panel, #screen-win .panel{padding:30px 40px;text-align:center;}
+.menu-col{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+
+/* floating combat text */
+.floater{
+  position:absolute;font-size:13px;font-weight:bold;pointer-events:none;
+  text-shadow:0 1px 3px #000, 0 0 6px rgba(0,0,0,0.8);
+  transition:transform 0.8s ease-out, opacity 0.8s ease-out;
+}
+
+#loading{position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:14px;background:#000;}
+</style>
+</head>
+<body>
+<div id="gameRoot">
+  <div id="viewport">
+    <canvas id="game" width="1152" height="648"></canvas>
+    <div id="uiLayer">
+      <div id="loading">Loading the night...</div>
+
+      <div id="screen-menu" class="screen hidden">
+        <h1 class="title-font">CRIMSON REQUIEM</h1>
+        <div class="subtitle">a vampire roguelike of blood and steel</div>
+        <button class="btn" id="btn-start" style="font-size:20px;padding:14px 32px;">Enter the City</button>
+        <div style="margin-top:22px;font-size:11.5px;color:var(--text-dim);text-align:center;line-height:1.7;">
+          WASD move &middot; Left Click light attack &middot; Right Click heavy attack<br>
+          Space dodge &middot; Tab items &middot; Escape pause
+        </div>
+      </div>
+
+      <div id="screen-charselect" class="screen hidden">
+        <h2 class="title-font">Choose Your Bloodline</h2>
+        <div class="char-grid" id="char-grid"></div>
+        <button class="btn" id="btn-confirm-char" style="font-size:16px;padding:12px 28px;" disabled>Begin the Descent</button>
+      </div>
+
+      <div id="screen-items" class="screen hidden">
+        <div class="panel">
+          <h2 class="title-font" style="text-align:center;">Relics Gathered</h2>
+          <div class="item-list" id="item-list"></div>
+          <div style="text-align:center;margin-top:14px;color:var(--text-dim);font-size:11px;">Press Tab to close</div>
+        </div>
+      </div>
+
+      <div id="screen-doorchoice" class="screen hidden">
+        <h2 class="title-font" id="doorchoice-title">A Choice Awaits</h2>
+        <div class="choices" id="doorchoice-choices"></div>
+      </div>
+
+      <div id="screen-pause" class="screen hidden">
+        <div class="panel">
+          <h2 class="title-font">Paused</h2>
+          <div class="menu-col">
+            <button class="btn" id="btn-resume">Resume</button>
+            <button class="btn" id="btn-quit">Abandon Run</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="screen-gameover" class="screen hidden">
+        <div class="panel">
+          <h2 class="title-font" style="color:#e0293f;">You Have Fallen</h2>
+          <div id="gameover-stats" style="color:var(--text-dim);font-size:13px;margin:10px 0;"></div>
+          <div class="menu-col">
+            <button class="btn" id="btn-retry">Return to the City</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="screen-win" class="screen hidden">
+        <div class="panel">
+          <h2 class="title-font">The Night Is Yours</h2>
+          <div id="win-stats" style="color:var(--text-dim);font-size:13px;margin:10px 0;"></div>
+          <div class="menu-col">
+            <button class="btn" id="btn-win-continue">Return to the City</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="hud" class="hidden">
+        <div id="hud-topleft">
+          <div class="bar-wrap"><div class="bar-fill hp" id="hp-fill" style="width:100%;"></div><div class="bar-label" id="hp-label">100/100</div></div>
+        </div>
+        <div id="hud-boss" class="hidden">
+          <div class="name" id="boss-name">Boss</div>
+          <div class="bar-wrap"><div class="bar-fill boss" id="boss-fill" style="width:100%;"></div></div>
+        </div>
+        <div id="hud-room">Room <b id="room-num">1</b>/10</div>
+        <div id="hud-combo"></div>
+        <div id="hud-weapon"></div>
+        <div id="hud-hint">Tab: items &middot; Esc: pause</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+window.__GAME_BUILD_MARKER__ = true;
+</script>
+<script src="game.js"></script>
+</body>
+</html>
