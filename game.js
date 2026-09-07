@@ -87,7 +87,14 @@ const Input = {
     window.addEventListener("blur", () => { this.keys.clear(); this.mouseDown.left = false; this.mouseDown.right = false; });
   },
   consume() {
-    this.pressedLight = false; this.pressedHeavy = false; this.pressedDodge = false;
+    // NOTE: pressedLight/pressedHeavy/pressedDodge are intentionally NOT cleared
+    // here. They're cleared the moment a fixed game-logic step actually reads
+    // them (see updatePlayer). This function runs once per rendered frame,
+    // which on displays faster than 60Hz can fire several times before a
+    // single 60Hz fixed step has accumulated enough time to run — clearing
+    // the flags here unconditionally used to wipe most clicks before the
+    // game ever saw them (visible as the game "ignoring" the majority of
+    // clicks on 120Hz/144Hz+ monitors).
     this.pressedTab = false; this.pressedEscape = false;
   },
   down(...names) { return names.some(n => this.keys.has(n)); }
@@ -617,7 +624,12 @@ function tryStartAttack(p, kind) {
   if (p.dodging) return;
   if (p.attackState === "idle") {
     p.comboBuffer = kind; startSwing(p, p.comboBuffer);
-  } else if (p.attackState === "recover" || (p.attackState === "active" && p.attackPhaseT / p.attackPhaseDur > 0.55)) {
+  } else {
+    // Buffer it no matter which phase of the current swing we're in
+    // (windup/active/recover). Only the *latest* click before the current
+    // swing resolves matters, and it fires the instant recovery ends —
+    // this is what makes mashing the button through a combo feel reliable
+    // instead of eating inputs that land a little early.
     p.pendingInput = kind;
   }
 }
@@ -1168,10 +1180,18 @@ function updatePlayer(p, dtMs, room) {
   p.moveX = mx; p.moveY = my; p.moving = mlen > 0;
   if (p.moving) p.walkPhase += dtMs / 110;
 
-  if (Input.pressedDodge) tryStartDodge(p);
+  // Consume the click/dodge flags right here, exactly once per fixed step —
+  // never in the per-rendered-frame Input.consume(). A fixed step is
+  // guaranteed to run before this flag is ever read again, so nothing gets
+  // silently dropped regardless of display refresh rate.
+  const wantDodge = Input.pressedDodge; Input.pressedDodge = false;
+  const wantLight = Input.pressedLight; Input.pressedLight = false;
+  const wantHeavy = Input.pressedHeavy; Input.pressedHeavy = false;
+
+  if (wantDodge) tryStartDodge(p);
   if (!p.dodging) {
-    if (Input.pressedLight) tryStartAttack(p, "L");
-    if (Input.pressedHeavy) tryStartAttack(p, "H");
+    if (wantLight) tryStartAttack(p, "L");
+    if (wantHeavy) tryStartAttack(p, "H");
     advanceAttack(p, dtMs);
   }
 
@@ -1347,6 +1367,11 @@ let Mode = "menu";
 let selectedCharIndex = -1;
 
 function setMode(next) {
+  if (Mode === "playing" && next !== "playing") {
+    // Leaving active play (pause/items/etc.) — drop any click/dodge that
+    // hasn't been consumed yet so it can't fire the instant we come back.
+    Input.pressedLight = false; Input.pressedHeavy = false; Input.pressedDodge = false;
+  }
   Mode = next;
   for (const k in Screens) Screens[k].classList.add("hidden");
   hudEl.classList.add("hidden");
